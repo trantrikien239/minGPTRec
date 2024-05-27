@@ -28,12 +28,13 @@ class Trainer:
         C.grad_norm_clip = 1.0
         return C
 
-    def __init__(self, config, model, train_dataset):
+    def __init__(self, config, model, train_dataset, data_loader=None):
         self.config = config
         self.model = model
         self.optimizer = None
         self.train_dataset = train_dataset
         self.callbacks = defaultdict(list)
+        self.data_loader = data_loader
 
         # determine the device we'll train on
         if config.device == 'auto':
@@ -65,14 +66,17 @@ class Trainer:
         self.optimizer = model.configure_optimizers(config)
 
         # setup the dataloader
-        train_loader = DataLoader(
-            self.train_dataset,
-            sampler=torch.utils.data.RandomSampler(self.train_dataset, replacement=True, num_samples=int(1e10)),
-            shuffle=False,
-            pin_memory=True,
-            batch_size=config.batch_size,
-            num_workers=config.num_workers,
-        )
+        if self.data_loader is not None:
+            train_loader = self.data_loader
+        else:
+            train_loader = DataLoader(
+                self.train_dataset,
+                sampler=torch.utils.data.RandomSampler(self.train_dataset, replacement=True, num_samples=int(1e10)),
+                shuffle=False,
+                pin_memory=True,
+                batch_size=config.batch_size,
+                num_workers=config.num_workers,
+            )
 
         model.train()
         self.iter_num = 0
