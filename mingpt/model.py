@@ -317,4 +317,4 @@ class GPT(nn.Module):
         if return_all:
             return idx
         else:
-            return torch.tensor(idx_new)
+            return torch.concat(idx_new, dim=-1)
