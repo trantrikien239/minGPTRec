@@ -26,15 +26,18 @@ class Trainer:
         C.betas = (0.9, 0.95)
         C.weight_decay = 0.1 # only applied on matmul weights
         C.grad_norm_clip = 1.0
+        C.max_epochs = 1
+        C.eval_freq = 1000
         return C
 
-    def __init__(self, config, model, train_dataset, data_loader=None):
+    def __init__(self, config, model, train_dataset, train_loader=None, eval_loader=None):
         self.config = config
         self.model = model
         self.optimizer = None
         self.train_dataset = train_dataset
         self.callbacks = defaultdict(list)
-        self.data_loader = data_loader
+        self.train_loader = train_loader
+        self.eval_loader = eval_loader
 
         # determine the device we'll train on
         if config.device == 'auto':
@@ -66,8 +69,8 @@ class Trainer:
         self.optimizer = model.configure_optimizers(config)
 
         # setup the dataloader
-        if self.data_loader is not None:
-            train_loader = self.data_loader
+        if self.train_loader is not None:
+            train_loader = self.train_loader
         else:
             train_loader = DataLoader(
                 self.train_dataset,
@@ -81,6 +84,9 @@ class Trainer:
         model.train()
         self.iter_num = 0
         self.iter_time = time.time()
+        self.epoch_num = 0
+        
+        
         data_iter = iter(train_loader)
         while True:
 
@@ -90,6 +96,9 @@ class Trainer:
             except StopIteration:
                 data_iter = iter(train_loader)
                 batch = next(data_iter)
+                self.epoch_num += 1
+                self.trigger_callbacks('on_epoch_end')
+
             batch = [t.to(self.device) for t in batch]
             x, y = batch
 
@@ -108,6 +117,11 @@ class Trainer:
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
 
+            # Eval frequency
+            if self.iter_num % config.eval_freq == 0:
+                self.trigger_callbacks('on_eval_freq')
+
             # termination conditions
-            if config.max_iters is not None and self.iter_num >= config.max_iters:
+            if (config.max_iters is not None and self.iter_num >= config.max_iters)\
+                or (config.max_epochs is not None and self.epoch_num >= config.max_epochs):
                 break
