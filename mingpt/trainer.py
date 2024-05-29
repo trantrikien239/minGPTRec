@@ -28,6 +28,7 @@ class Trainer:
         C.grad_norm_clip = 1.0
         C.max_epochs = 1
         C.eval_freq = 1000
+        C.save_freq = 1000
         return C
 
     def __init__(self, config, model, train_dataset, train_loader=None, eval_loader=None):
@@ -120,6 +121,9 @@ class Trainer:
             # Eval frequency
             if self.iter_num % config.eval_freq == 0:
                 self.trigger_callbacks('on_eval_freq')
+
+            if self.iter_num % config.save_freq == 0:
+                self.trigger_callbacks('on_save_freq')
 
             # termination conditions
             if (config.max_iters is not None and self.iter_num >= config.max_iters)\
